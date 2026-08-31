@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+data/snapshots/*.json
+output/*.html
+output/*.pdf
+!data/snapshots/.gitkeep
+!output/.gitkeep
