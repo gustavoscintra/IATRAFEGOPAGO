@@ -48,7 +48,7 @@ def fmt_freq(value):
 
 def campaign_rows_html(campaigns):
     if not campaigns:
-        return "<tr><td colspan='9' class='empty'>Nenhuma campanha com gasto &gt; 0 nesse período.</td></tr>"
+        return "<tr><td colspan='10' class='empty'>Nenhuma campanha com gasto &gt; 0 nesse período.</td></tr>"
     rows = []
     for c in campaigns:
         results_txt = fmt_num(c["results"]) if c["results"] is not None else "—"
@@ -58,14 +58,14 @@ def campaign_rows_html(campaigns):
             "<tr>"
             f"<td>{html.escape(c['name'] or '')}</td>"
             f"<td>{html.escape(c['objective'] or '—')}</td>"
-            f"<td>{html.escape(c['effective_status'] or '—')}</td>"
-            f"<td class='num'>{fmt_currency(c['daily_budget'])}</td>"
-            f"<td class='num'>{fmt_currency(c['amount_spent'])}</td>"
-            f"<td class='num'>{fmt_pct(c['ctr'])}</td>"
-            f"<td class='num'>{fmt_currency(c['cpm'])}</td>"
-            f"<td class='num'>{fmt_freq(c['frequency'])}</td>"
-            f"<td class='num'>{fmt_currency(c['cost_per_result'])}</td>"
-            f"<td class='num'>{results_txt}</td>"
+            f"<td><span class='mini-chip'>{html.escape(c['effective_status'] or '—')}</span></td>"
+            f"<td class='num mono'>{fmt_currency(c['daily_budget'])}</td>"
+            f"<td class='num mono'>{fmt_currency(c['amount_spent'])}</td>"
+            f"<td class='num mono'>{fmt_pct(c['ctr'])}</td>"
+            f"<td class='num mono'>{fmt_currency(c['cpm'])}</td>"
+            f"<td class='num mono'>{fmt_freq(c['frequency'])}</td>"
+            f"<td class='num mono'>{fmt_currency(c['cost_per_result'])}</td>"
+            f"<td class='num mono'>{results_txt}</td>"
             "</tr>"
         )
     return "".join(rows)
@@ -75,7 +75,10 @@ def account_row_html(row, idx):
     m = row["metrics"]
     alerts = row["alerts"]
     status = alerts["status"]
-    flags_txt = ", ".join(FLAG_LABEL.get(f, f) for f in alerts["flags"]) or "—"
+    flag_pills = "".join(
+        f"<span class='flag-pill flag-{status}'>{html.escape(FLAG_LABEL.get(f, f))}</span>"
+        for f in alerts["flags"]
+    ) or "<span class='muted'>—</span>"
 
     spend = m.get("amount_spent") or 0
     ctr = m.get("ctr") or 0
@@ -83,16 +86,17 @@ def account_row_html(row, idx):
 
     header = (
         f"<tr class='acct-row status-{status}' data-spend='{spend}' data-ctr='{ctr}' "
-        f"data-freq='{freq}' data-status='{status}' data-target='detail-{idx}'>"
-        f"<td class='semaforo'><span class='dot dot-{status}' title='{STATUS_LABEL[status]}'></span></td>"
-        f"<td class='acct-name'>▸ {html.escape(row['ad_account_name'] or row['ad_account_id'])}"
-        f"<div class='muted small'>{html.escape(row['ad_account_id'])}</div></td>"
-        f"<td class='num'>{fmt_currency(spend, row['currency'])}</td>"
-        f"<td class='num'>{fmt_pct(m.get('ctr'))}</td>"
-        f"<td class='num'>{fmt_currency(m.get('cpm'), row['currency'])}</td>"
-        f"<td class='num'>{fmt_freq(m.get('frequency'))}</td>"
-        f"<td class='num'>{row['active_campaign_count']}</td>"
-        f"<td class='flags'>{html.escape(flags_txt)}</td>"
+        f"data-freq='{freq}' data-status='{status}' data-target='detail-{idx}' "
+        f"tabindex='0' role='button' aria-expanded='false'>"
+        f"<td class='status-cell'><span class='chip chip-{status}'>{STATUS_LABEL[status]}</span></td>"
+        f"<td class='acct-name'><span class='caret'>▸</span> {html.escape(row['ad_account_name'] or row['ad_account_id'])}"
+        f"<div class='muted small mono'>{html.escape(row['ad_account_id'])}</div></td>"
+        f"<td class='num mono'>{fmt_currency(spend, row['currency'])}</td>"
+        f"<td class='num mono'>{fmt_pct(m.get('ctr'))}</td>"
+        f"<td class='num mono'>{fmt_currency(m.get('cpm'), row['currency'])}</td>"
+        f"<td class='num mono'>{fmt_freq(m.get('frequency'))}</td>"
+        f"<td class='num mono'>{row['active_campaign_count']}</td>"
+        f"<td class='flags'>{flag_pills}</td>"
         "</tr>"
     )
     detail = (
@@ -107,55 +111,132 @@ def account_row_html(row, idx):
 
 
 CSS = """
-:root{color-scheme:light dark;--bg:#0b0d10;--fg:#e7e9ec;--muted:#9aa3ad;--card:#15181c;
---border:#2a2f36;--green:#2ecc71;--yellow:#f1c40f;--red:#e74c3c;--accent:#5b9dff;}
-@media (prefers-color-scheme: light){
-:root{--bg:#f7f8fa;--fg:#1a1d21;--muted:#5b6470;--card:#ffffff;--border:#e2e5e9;}
+:root{
+  color-scheme:light dark;
+  --bg:#eef1f6; --surface:#ffffff; --surface-2:#f4f6fb; --border:#dde2ea;
+  --ink:#171a21; --muted:#5c6577;
+  --accent:#46399e; --accent-ink:#ffffff;
+  --ok:#1f8f5f; --ok-bg:rgba(31,143,95,.10);
+  --warn:#a8720d; --warn-bg:rgba(184,133,20,.14);
+  --crit:#c43d34; --crit-bg:rgba(196,61,52,.11);
+  --shadow:0 1px 2px rgba(23,26,33,.05), 0 8px 24px -16px rgba(23,26,33,.25);
 }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11131a; --surface:#181b24; --surface-2:#1f2330; --border:#2b2f3d;
+    --ink:#e7e9f0; --muted:#9096a8;
+    --accent:#9089e8; --accent-ink:#14121f;
+    --ok:#3ecf8e; --ok-bg:rgba(62,207,142,.12);
+    --warn:#e0a83f; --warn-bg:rgba(224,168,63,.14);
+    --crit:#ea6459; --crit-bg:rgba(234,100,89,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11131a; --surface:#181b24; --surface-2:#1f2330; --border:#2b2f3d;
+  --ink:#e7e9f0; --muted:#9096a8;
+  --accent:#9089e8; --accent-ink:#14121f;
+  --ok:#3ecf8e; --ok-bg:rgba(62,207,142,.12);
+  --warn:#e0a83f; --warn-bg:rgba(224,168,63,.14);
+  --crit:#ea6459; --crit-bg:rgba(234,100,89,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif;padding:24px}
-h1{font-size:20px;margin:0 0 2px}
-.subtitle{color:var(--muted);font-size:13px;margin-bottom:18px}
-.controls{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px;
-background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
-.controls label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:4px}
-.controls input,.controls select{padding:6px 8px;border-radius:6px;border:1px solid var(--border);
-background:var(--bg);color:var(--fg)}
-.summary-cards{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:140px}
-.card .label{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
-.card .value{font-size:20px;font-weight:600;margin-top:4px}
-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-th,td{padding:9px 10px;border-bottom:1px solid var(--border);text-align:left;font-size:13px}
-th{cursor:pointer;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;user-select:none}
-th:hover{color:var(--accent)}
-td.num{text-align:right;font-variant-numeric:tabular-nums}
+body{
+  margin:0; background:var(--bg); color:var(--ink); padding:28px 32px 48px;
+  font:15px/1.5 "Manrope","Segoe UI",-apple-system,sans-serif;
+}
+.mono{font-family:"IBM Plex Mono","SFMono-Regular",Consolas,monospace}
+h1{font-size:21px; font-weight:800; letter-spacing:-.01em; margin:0 0 3px; text-wrap:balance}
+.subtitle{color:var(--muted); font-size:13px; margin-bottom:20px}
+.subtitle .mono{font-size:12px}
+
+.summary-cards{display:grid; grid-template-columns:repeat(4,minmax(140px,1fr)); gap:12px; margin-bottom:18px}
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; box-shadow:var(--shadow);
+}
+.card .label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:600}
+.card .value{font-family:"IBM Plex Mono",monospace; font-size:22px; font-weight:600; margin-top:6px; color:var(--ink)}
+.card.attn .value{color:var(--crit)}
+
+.controls{
+  display:flex; gap:18px; flex-wrap:wrap; align-items:end; margin-bottom:16px;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:12px 16px; box-shadow:var(--shadow);
+}
+.controls label{display:flex; flex-direction:column; font-size:11px; color:var(--muted); gap:5px; font-weight:600; text-transform:uppercase; letter-spacing:.03em}
+.controls input[type=number]{
+  padding:7px 9px; border-radius:7px; border:1px solid var(--border); width:110px;
+  background:var(--bg); color:var(--ink); font:14px/1 "IBM Plex Mono",monospace;
+}
+.controls .check-label{flex-direction:row; align-items:center; gap:7px; text-transform:none; font-weight:500}
+.controls input[type=checkbox]{width:auto; accent-color:var(--accent)}
+input:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.table-wrap{overflow-x:auto; border-radius:12px; box-shadow:var(--shadow)}
+table{width:100%; border-collapse:collapse; background:var(--surface); min-width:760px}
+th,td{padding:11px 12px; border-bottom:1px solid var(--border); text-align:left; font-size:13.5px}
+thead th{
+  cursor:pointer; color:var(--muted); font-weight:700; font-size:10.5px;
+  text-transform:uppercase; letter-spacing:.05em; user-select:none; background:var(--surface-2);
+  border-bottom:1px solid var(--border);
+}
+thead th:hover, thead th:focus-visible{color:var(--accent)}
+td.num{text-align:right}
 .acct-row{cursor:pointer}
-.acct-row:hover{background:rgba(91,157,255,.08)}
-.status-red{background:rgba(231,76,60,.10)}
-.status-yellow{background:rgba(241,196,15,.08)}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%}
-.dot-green{background:var(--green)}
-.dot-yellow{background:var(--yellow)}
-.dot-red{background:var(--red)}
+.acct-row:hover{background:var(--surface-2)}
+.acct-row:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.acct-row[aria-expanded="true"] .caret{transform:rotate(90deg)}
+.caret{display:inline-block; color:var(--muted); transition:transform .15s ease; width:.8em}
+
+.status-cell{border-left:4px solid transparent; padding-left:10px}
+.status-yellow .status-cell{border-left-color:var(--warn); background:var(--warn-bg)}
+.status-red .status-cell{border-left-color:var(--crit); background:var(--crit-bg)}
+.status-green .status-cell{border-left-color:var(--ok)}
+
+.chip{
+  display:inline-block; font-size:11px; font-weight:700; padding:3px 9px; border-radius:99px;
+  text-transform:uppercase; letter-spacing:.03em;
+}
+.chip-green{background:var(--ok-bg); color:var(--ok)}
+.chip-yellow{background:var(--warn-bg); color:var(--warn)}
+.chip-red{background:var(--crit-bg); color:var(--crit)}
+
+.mini-chip{
+  display:inline-block; font-size:11px; padding:2px 8px; border-radius:6px;
+  background:var(--surface-2); color:var(--muted); border:1px solid var(--border);
+}
+
 .muted{color:var(--muted)}
-.small{font-size:11px}
-.flags{color:var(--muted);font-size:12px}
-.status-red .flags{color:var(--red);font-weight:600}
-.status-yellow .flags{color:#c9930a;font-weight:600}
-.campaign-table{width:100%;font-size:12px;background:transparent;border:none}
-.campaign-table th{background:transparent}
-.empty{color:var(--muted);font-style:italic;padding:10px}
-footer{margin-top:18px;color:var(--muted);font-size:12px}
+.small{font-size:11.5px}
+.flags{display:flex; flex-wrap:wrap; gap:5px}
+.flag-pill{font-size:11px; padding:3px 8px; border-radius:6px; font-weight:600}
+.flag-yellow{background:var(--warn-bg); color:var(--warn)}
+.flag-red{background:var(--crit-bg); color:var(--crit)}
+
+.detail-row td{padding:0; background:var(--surface-2)}
+.campaign-table{width:100%; font-size:12.5px; background:transparent; margin:2px 0 2px 20px; width:calc(100% - 20px);
+  border-left:2px solid var(--border)}
+.campaign-table th{background:transparent; padding:8px 12px; border-bottom:1px solid var(--border)}
+.campaign-table td{padding:8px 12px}
+.empty{color:var(--muted); font-style:italic; padding:12px}
+footer{margin-top:16px; color:var(--muted); font-size:12px}
 """
 
 JS = """
+function toggleRow(row){
+  const detail = document.getElementById(row.dataset.target);
+  const willShow = detail.style.display === 'none';
+  detail.style.display = willShow ? '' : 'none';
+  row.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+}
 document.querySelectorAll('.acct-row').forEach(row=>{
-  row.addEventListener('click', ()=>{
-    const detail = document.getElementById(row.dataset.target);
-    detail.style.display = detail.style.display === 'none' ? '' : 'none';
-    row.querySelector('.acct-name').firstChild.textContent =
-      (detail.style.display === 'none' ? '▸ ' : '▾ ');
+  row.addEventListener('click', ()=>toggleRow(row));
+  row.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleRow(row); }
   });
 });
 
@@ -178,23 +259,28 @@ function applyFilters(){
 ['f-spend','f-ctr','f-freq'].forEach(id=>document.getElementById(id).addEventListener('input', applyFilters));
 document.getElementById('f-alerts').addEventListener('change', applyFilters);
 
+function sortByHeader(th){
+  const key = th.dataset.sort;
+  const tbody = document.querySelector('#accounts-table tbody');
+  const rows = Array.from(tbody.querySelectorAll('.acct-row'));
+  const dir = th.dataset.dir === 'desc' ? 'asc' : 'desc';
+  document.querySelectorAll('#accounts-table th[data-sort]').forEach(t=>t.dataset.dir='');
+  th.dataset.dir = dir;
+  rows.sort((a,b)=>{
+    const av = parseFloat(a.dataset[key]) || 0;
+    const bv = parseFloat(b.dataset[key]) || 0;
+    return dir === 'desc' ? bv - av : av - bv;
+  });
+  rows.forEach(r=>{
+    tbody.appendChild(r);
+    tbody.appendChild(document.getElementById(r.dataset.target));
+  });
+}
 document.querySelectorAll('#accounts-table th[data-sort]').forEach(th=>{
-  th.addEventListener('click', ()=>{
-    const key = th.dataset.sort;
-    const tbody = document.querySelector('#accounts-table tbody');
-    const rows = Array.from(tbody.querySelectorAll('.acct-row'));
-    const dir = th.dataset.dir === 'desc' ? 'asc' : 'desc';
-    document.querySelectorAll('#accounts-table th[data-sort]').forEach(t=>t.dataset.dir='');
-    th.dataset.dir = dir;
-    rows.sort((a,b)=>{
-      const av = parseFloat(a.dataset[key]) || 0;
-      const bv = parseFloat(b.dataset[key]) || 0;
-      return dir === 'desc' ? bv - av : av - bv;
-    });
-    rows.forEach(r=>{
-      tbody.appendChild(r);
-      tbody.appendChild(document.getElementById(r.dataset.target));
-    });
+  th.setAttribute('tabindex','0');
+  th.addEventListener('click', ()=>sortByHeader(th));
+  th.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); sortByHeader(th); }
   });
 });
 """
@@ -216,31 +302,35 @@ def render_html(rows, meta, previous_meta):
 
     return f"""<!doctype html>
 <html lang="pt-br"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dashboard Meta Ads — Scaland</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>{CSS}</style></head>
 <body>
 <h1>Dashboard Meta Ads — Scaland</h1>
-<div class="subtitle">Gerado em {html.escape(str(meta.get('generated_at','')))} · Período: {html.escape(str(period_txt))} · {html.escape(compare_txt)}</div>
+<div class="subtitle">Gerado em <span class="mono">{html.escape(str(meta.get('generated_at','')))}</span> · Período: <span class="mono">{html.escape(str(period_txt))}</span> · {html.escape(compare_txt)}</div>
 
 <div class="summary-cards">
   <div class="card"><div class="label">Contas ativas</div><div class="value">{len(rows)}</div></div>
   <div class="card"><div class="label">Gasto total</div><div class="value">{fmt_currency(total_spend, currency)}</div></div>
-  <div class="card"><div class="label">Precisam de atenção</div><div class="value">{needing_attention}</div></div>
-  <div class="card"><div class="label">Threshold frequência</div><div class="value">&gt; {THRESHOLDS['frequency_alert']}</div></div>
+  <div class="card{' attn' if needing_attention else ''}"><div class="label">Precisam de atenção</div><div class="value">{needing_attention}</div></div>
+  <div class="card"><div class="label">Threshold frequência</div><div class="value">&gt; {THRESHOLDS['frequency_alert']:.0f}</div></div>
 </div>
 
 <div class="controls">
   <label>Gasto mínimo <input id="f-spend" type="number" value="0" step="10"></label>
   <label>CTR mínimo (%) <input id="f-ctr" type="number" value="0" step="0.1"></label>
   <label>Frequência mínima <input id="f-freq" type="number" value="0" step="0.1"></label>
-  <label style="flex-direction:row;align-items:center;gap:6px">
-    <input id="f-alerts" type="checkbox" style="width:auto"> Só contas com alerta
+  <label class="check-label">
+    <input id="f-alerts" type="checkbox"> Só contas com alerta
   </label>
 </div>
 
+<div class="table-wrap">
 <table id="accounts-table">
 <thead><tr>
-<th>Semáforo</th>
+<th>Status</th>
 <th data-sort="spend">Conta ▾</th>
 <th class="num" data-sort="spend">Gasto ▾</th>
 <th class="num" data-sort="ctr">CTR ▾</th>
@@ -251,8 +341,9 @@ def render_html(rows, meta, previous_meta):
 </tr></thead>
 <tbody>{body_rows}</tbody>
 </table>
+</div>
 
-<footer>Clique numa linha de conta para ver as campanhas. Clique nos cabeçalhos com ▾ para ordenar.</footer>
+<footer>Clique numa linha de conta (ou Enter/Espaço com foco no teclado) para ver as campanhas. Clique nos cabeçalhos com ▾ para ordenar.</footer>
 <script>{JS}</script>
 </body></html>
 """
