@@ -90,8 +90,26 @@ python3 scripts/generate_dashboard.py --current data/snapshots/<atual>.json --pr
 python3 scripts/generate_pdf.py       --current data/snapshots/<atual>.json --previous data/snapshots/<anterior>.json
 ```
 
-Gera `output/dashboard.html` e `output/dashboard.pdf`. Publique o HTML
-como Artifact pro usuário conferir, e envie o PDF como arquivo.
+Gera `output/dashboard.html` e `output/dashboard.pdf`, já com a seção
+"Ações sugeridas" (heurística em `scripts/analyze.py::suggest_actions`,
+uma sugestão por flag de alerta, apontando pra campanha específica).
+Publique o HTML como Artifact (atualizando o mesmo link de antes, se
+houver — passe `url`) e envie o PDF como arquivo.
+
+## 7. Ações sugeridas → execução
+
+As sugestões nunca são executadas sozinhas. Depois de publicar, liste
+pro usuário as ações do painel e pergunte se quer que alguma seja
+aplicada de verdade. Se ele confirmar uma específica, use:
+
+- **Pausar campanha**: `ads_update_entity` com `entity_type="campaign"`,
+  `fields={"status": "PAUSED"}`.
+- **Ajustar orçamento**: `ads_update_entity` com `fields={"daily_budget": <centavos>}`
+  (valor em centavos da moeda da conta, ex. R$50,00 → `5000`).
+- **Reativar**: `ads_activate_entity` (só some PAUSED→ACTIVE).
+
+Sempre confirme qual campanha/valor exato antes de chamar — nunca execute
+a partir só da sugestão sem o usuário validar a campanha e o valor.
 
 ## Coisas que já sabemos que quebram se você não tratar
 

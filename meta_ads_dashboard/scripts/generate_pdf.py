@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 from config import DATA_DIR, OUTPUT_DIR, THRESHOLDS  # noqa: E402
 from scripts.analyze import build_account_rows, find_latest_snapshot, load_snapshot  # noqa: E402
-from scripts.generate_dashboard import fmt_currency, fmt_pct, fmt_freq, STATUS_LABEL, FLAG_LABEL  # noqa: E402
+from scripts.generate_dashboard import fmt_currency, fmt_pct, fmt_freq, STATUS_LABEL, FLAG_LABEL, ACTION_VERB  # noqa: E402
 
 STATUS_COLOR = {
     "green": colors.HexColor("#1f8f5f"),
@@ -45,6 +45,7 @@ def build_pdf(rows, meta, previous_meta, out_path):
     sub_style = ParagraphStyle("SubX", parent=styles["Normal"], textColor=colors.HexColor("#5c6577"), fontSize=9)
     h2_style = ParagraphStyle("H2X", parent=styles["Heading2"], fontSize=12, spaceBefore=14, spaceAfter=6)
     small_style = ParagraphStyle("SmallX", parent=styles["Normal"], fontSize=8, textColor=colors.HexColor("#5c6577"))
+    action_style = ParagraphStyle("ActionX", parent=styles["Normal"], fontSize=9, spaceAfter=4, leftIndent=4)
 
     def fmt_range(mt):
         if not mt:
@@ -93,6 +94,17 @@ def build_pdf(rows, meta, previous_meta, out_path):
             flags_txt,
         ])
         row_colors.append(alerts["status"])
+
+    action_items = [(r["ad_account_name"] or r["ad_account_id"], a) for r in active for a in r.get("suggested_actions", [])]
+    if action_items:
+        story.append(Paragraph("Ações sugeridas", h2_style))
+        for acct_name, a in action_items:
+            verb = ACTION_VERB.get(a["action"], a["action"])
+            story.append(Paragraph(f"<b>[{verb}]</b> {acct_name} — {a['message']}", action_style))
+        story.append(Paragraph(
+            "Nenhuma ação é executada automaticamente — recomendações a partir dos alertas; peça pra executar e confirmamos antes de mudar algo na Meta.",
+            small_style,
+        ))
 
     story.append(Spacer(1, 8))
     story.append(Paragraph("Contas com investimento no período", h2_style))

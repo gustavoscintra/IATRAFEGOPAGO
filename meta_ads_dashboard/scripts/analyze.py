@@ -111,6 +111,80 @@ def _compute_alerts(metrics, prev_metrics):
     }
 
 
+def _fmt_brl(value):
+    if value is None:
+        return "—"
+    return f"R${value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def suggest_actions(row):
+    """Sugestões de ação concretas (não executadas automaticamente — só pra
+    apresentar e pedir confirmação antes de qualquer mudança real na Meta).
+    Cada sugestão aponta pra uma campanha específica (id/nome), pra poder
+    virar uma chamada de ads_update_entity depois que o usuário confirmar.
+    """
+    if row["alerts"]["status"] == "green":
+        return []
+    active = [
+        c for c in row["campaigns"]
+        if c.get("effective_status") == "ACTIVE" and (c.get("amount_spent") or 0) > 0
+    ]
+    if not active:
+        return []
+
+    flags = row["alerts"]["flags"]
+    alerts = row["alerts"]
+    actions = []
+
+    if "frequencia_alta" in flags:
+        worst = max(active, key=lambda c: c.get("frequency") or 0)
+        freq = worst.get("frequency") or 0
+        severe = freq > THRESHOLDS["frequency_alert"] * 1.5
+        actions.append({
+            "flag": "frequencia_alta",
+            "campaign_id": worst["id"],
+            "campaign_name": worst["name"],
+            "action": "pausar" if severe else "revisar_criativo",
+            "message": (
+                f"Frequência {freq:.2f} na campanha \"{worst['name']}\" — "
+                + ("considerar pausar ou trocar criativo, audiência saturada."
+                   if severe else "revisar criativo ou ampliar público antes que vire fadiga.")
+            ),
+        })
+
+    if "ctr_caindo" in flags:
+        with_ctr = [c for c in active if c.get("ctr") is not None]
+        if with_ctr:
+            worst = min(with_ctr, key=lambda c: c["ctr"])
+            actions.append({
+                "flag": "ctr_caindo",
+                "campaign_id": worst["id"],
+                "campaign_name": worst["name"],
+                "action": "trocar_criativo",
+                "message": (
+                    f"CTR da conta caiu {alerts['ctr_drop_pct']:.0f}% vs. período anterior — "
+                    f"\"{worst['name']}\" (CTR {worst['ctr']:.2f}%) é a candidata mais provável; "
+                    "considerar trocar criativo."
+                ),
+            })
+
+    if "cpm_disparando" in flags:
+        worst = max(active, key=lambda c: c.get("cpm") or 0)
+        actions.append({
+            "flag": "cpm_disparando",
+            "campaign_id": worst["id"],
+            "campaign_name": worst["name"],
+            "action": "revisar_orcamento_segmentacao",
+            "message": (
+                f"CPM da conta subiu {alerts['cpm_spike_pct']:.0f}% vs. período anterior — "
+                f"\"{worst['name']}\" (CPM {_fmt_brl(worst.get('cpm'))}, orç. diário "
+                f"{_fmt_brl(worst.get('daily_budget'))}) puxa o aumento; revisar segmentação ou orçamento."
+            ),
+        })
+
+    return actions
+
+
 def build_account_rows(current_snapshot, previous_snapshot=None):
     prev_by_id = {}
     if previous_snapshot:
@@ -134,18 +208,18 @@ def build_account_rows(current_snapshot, previous_snapshot=None):
 
         alerts = _compute_alerts(metrics, prev_metrics)
 
-        rows.append(
-            {
-                "ad_account_id": acc["ad_account_id"],
-                "ad_account_name": acc.get("ad_account_name"),
-                "currency": acc.get("currency", "BRL"),
-                "metrics": metrics,
-                "prev_metrics": prev_metrics,
-                "campaigns": campaigns,
-                "active_campaign_count": len(active_campaigns),
-                "alerts": alerts,
-            }
-        )
+        row = {
+            "ad_account_id": acc["ad_account_id"],
+            "ad_account_name": acc.get("ad_account_name"),
+            "currency": acc.get("currency", "BRL"),
+            "metrics": metrics,
+            "prev_metrics": prev_metrics,
+            "campaigns": campaigns,
+            "active_campaign_count": len(active_campaigns),
+            "alerts": alerts,
+        }
+        row["suggested_actions"] = suggest_actions(row)
+        rows.append(row)
 
     rows.sort(key=lambda r: (r["metrics"].get("amount_spent") or 0), reverse=True)
     return rows

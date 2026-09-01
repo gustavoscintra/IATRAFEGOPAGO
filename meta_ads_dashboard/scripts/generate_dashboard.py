@@ -71,6 +71,36 @@ def campaign_rows_html(campaigns):
     return "".join(rows)
 
 
+ACTION_VERB = {
+    "pausar": "Pausar",
+    "revisar_criativo": "Revisar criativo",
+    "trocar_criativo": "Trocar criativo",
+    "revisar_orcamento_segmentacao": "Revisar orçamento",
+}
+
+
+def actions_panel_html(rows):
+    items = []
+    for r in rows:
+        for a in r.get("suggested_actions", []):
+            hard = a["action"] in ("pausar", "trocar_criativo")
+            verb_class = "verb" if hard else "verb soft"
+            items.append(
+                "<div class='action-item'>"
+                f"<span class='{verb_class}'>{html.escape(ACTION_VERB.get(a['action'], a['action']))}</span>"
+                f"<span class='acct'>{html.escape(r['ad_account_name'] or r['ad_account_id'])}</span>"
+                f"<span class='msg'>{html.escape(a['message'])}</span>"
+                "</div>"
+            )
+    body = "".join(items) if items else "<div class='actions-empty'>Nenhuma ação sugerida — carteira sem alertas nesta rodada.</div>"
+    return (
+        "<div class='actions-panel'><h2>Ações sugeridas</h2>"
+        f"{body}"
+        "<div class='actions-note'>Nenhuma ação é executada automaticamente — são só recomendações a partir dos alertas. Peça pra executar qualquer uma e ela é aplicada via Meta Ads com sua confirmação.</div>"
+        "</div>"
+    )
+
+
 def account_row_html(row, idx):
     m = row["metrics"]
     alerts = row["alerts"]
@@ -217,6 +247,25 @@ td.num{text-align:right}
 .flag-yellow{background:var(--warn-bg); color:var(--warn)}
 .flag-red{background:var(--crit-bg); color:var(--crit)}
 
+.actions-panel{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; margin-bottom:16px; box-shadow:var(--shadow);
+}
+.actions-panel h2{font-size:13px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted)}
+.action-item{
+  display:flex; gap:10px; align-items:baseline; padding:8px 0; border-top:1px solid var(--border);
+}
+.action-item:first-of-type{border-top:none}
+.action-item .acct{font-weight:700; white-space:nowrap}
+.action-item .msg{color:var(--ink); font-size:13.5px}
+.action-item .verb{
+  font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+  padding:2px 7px; border-radius:5px; white-space:nowrap; background:var(--crit-bg); color:var(--crit);
+}
+.action-item .verb.soft{background:var(--warn-bg); color:var(--warn)}
+.actions-empty{color:var(--muted); font-size:13px; font-style:italic}
+.actions-note{color:var(--muted); font-size:11.5px; margin-top:10px}
+
 .detail-row td{padding:0; background:var(--surface-2)}
 .campaign-table{width:100%; font-size:12.5px; background:transparent; margin:2px 0 2px 20px; width:calc(100% - 20px);
   border-left:2px solid var(--border)}
@@ -317,6 +366,8 @@ def render_html(rows, meta, previous_meta):
   <div class="card{' attn' if needing_attention else ''}"><div class="label">Precisam de atenção</div><div class="value">{needing_attention}</div></div>
   <div class="card"><div class="label">Threshold frequência</div><div class="value">&gt; {THRESHOLDS['frequency_alert']:.0f}</div></div>
 </div>
+
+{actions_panel_html(rows)}
 
 <div class="controls">
   <label>Gasto mínimo <input id="f-spend" type="number" value="0" step="10"></label>
