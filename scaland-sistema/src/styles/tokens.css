@@ -1,0 +1,25 @@
+/* Extraído do protótipo scaland-sistema.html — não alterar valores sem
+   olhar o protótipo original, é a identidade visual da marca. */
+:root{
+  --emerald:#34d399; --emerald-deep:#059669; --mint:#6ee7b7;
+  --radius:12px;
+  --mono:"SF Mono",ui-monospace,"Cascadia Mono",Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#0a0d0c; --bg-2:#0f1513; --panel:#121917; --panel-2:#161f1c;
+  --line:#212d29; --line-2:#2c3d38;
+  --text:#f2f7f5; --text-2:#a7bcb4; --text-3:#647a72;
+  --accent:var(--emerald); --accent-soft:#1b3a30; --accent-text:#6ee7b7;
+  --shadow:0 8px 30px rgba(0,0,0,.4);
+}
+:root[data-theme="light"]{
+  --bg:#eef2f0; --bg-2:#ffffff; --panel:#ffffff; --panel-2:#f0f5f2;
+  --line:#e2eae6; --line-2:#cfdcd6;
+  --text:#0d1614; --text-2:#4a5c56; --text-3:#82988f;
+  --accent:var(--emerald-deep); --accent-soft:#dff5ec; --accent-text:#047857;
+  --shadow:0 6px 22px rgba(16,40,32,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5}
